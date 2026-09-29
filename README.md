@@ -1,15 +1,46 @@
-# KIMIE AI Development
+# KIMIE | Chat & Todo
 
 公開URL: https://kimie-ai-development.vercel.app/
 
-公開・自動デプロイ確認用の静的ページです。`index.html` をブラウザで開けます。ビルドや環境変数は不要です。
+案件 → 話題 → 送り先別の会話を中心にした、操作できる試作版です。
 
-## 更新と公開
+## できること
 
-1. 開発元 `kim31tt/kimie-ai-development` の `main` に変更をpushします。
-2. GitHub Actionsが配信用 `MasaomiF/kimie-ai-development` の `main` に同期します。
-3. 配信用リポジトリに接続したVercelが公開します。
+- 案件・話題・話題内の会話を作成
+- 同じ話題で施主／取引先／社内の会話を切り替え
+- 未解決・返答待ち・解決済みで話題を管理し、期限超過を優先表示
+- 依頼表現からTodoを自動作成（ルール判定。外部AIは使用しません）
+- Todoの担当・期限・内容を確認し、完了／未完了を切り替え
+- Todoから元の会話・メッセージへ移動
+- 投稿の手動Todo化、検索、案件切り替え、送り先ごとの閲覧プレビュー
+- 入力内容をlocalStorageに保存。再読み込み後も保持
 
-`.github` は配信用リポジトリへ同期しません。変更は開発元で行ってください。
+## 試作版の範囲
 
-Vercel設定: Framework Preset `Other`、Root Directory `./`、ビルドコマンドなし。
+実際の送信、アカウント、サーバー保存、通知、複数人の同期はありません。
+閲覧プレビューは画面のフィルターであり、セキュリティ上のアクセス制御ではありません。
+ブラウザには全サンプルデータが存在するため、本物の機密情報・個人情報は登録しないでください。
+別ブラウザや端末とはデータを共有しません。ブラウザのサイトデータを削除すると内容が失われます。
+自動生成したTodoの担当は未割当です。内容・担当・期限を確認して保存すると進行中に移ります。
+日付抽出は今日／明日／明後日／月日形式を扱います。複雑な依頼・否定表現は正しく判定できない場合があります。
+
+## ローカル実行・検証
+
+ビルド・依存パッケージ・環境変数は不要です。ES Modulesを使うためHTTPサーバー経由で開きます。
+
+```sh
+python3 -m http.server 8765 --bind 127.0.0.1
+node --test tests/model.test.mjs
+```
+
+- `index.html` : ページの入口
+- `styles.css` : レスポンシブ画面
+- `app.mjs` : 画面・操作・保存
+- `model.mjs` : サンプルデータ・Todo生成・状態遷移
+- `tests/model.test.mjs` : Todo生成、関連付け、解決条件、閲覧フィルターなどの検証
+
+## 公開
+
+開発元 `kim31tt/kimie-ai-development` のmainへpush → Actionsが配信用 `MasaomiF/kimie-ai-development` のmainへ同期 → Vercelが自動公開します。
+`.github`は同期されません。変更は開発元で行ってください。
+Vercel: Framework Preset `Other`、Root Directory `./`、ビルドなし。

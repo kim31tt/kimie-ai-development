@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f3ed">
+  <meta name="description" content="KIMIE AI Development — アイデアを、ひとつずつ形に。開発と公開のためのスタートページ。">
+  <title>KIMIE AI Development</title>
+  <style>
+    :root { color-scheme: light; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Kaku Gothic ProN", sans-serif; color: #202e28; background: #f4f3ed; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100svh; }
+    .page { max-width: 1120px; margin: auto; padding: 36px 48px 24px; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding-bottom: 28px; border-bottom: 1px solid #d7dcd2; }
+    .brand { font-size: 15px; font-weight: 700; letter-spacing: .12em; }
+    .edition { font-size: 11px; letter-spacing: .16em; color: #617064; }
+    main { padding: 100px 0 80px; }
+    .eyebrow { display: flex; align-items: center; gap: 10px; font-size: 12px; letter-spacing: .12em; }
+    .dot { width: 8px; height: 8px; background: #597358; border-radius: 50%; }
+    h1 { font-size: clamp(48px, 7.4vw, 88px); font-weight: 500; letter-spacing: -.065em; line-height: 1.03; margin: 30px 0; }
+    h1 span { color: #60745c; }
+    .intro { font-size: clamp(18px, 2.5vw, 23px); line-height: 1.8; letter-spacing: .04em; margin: 0; }
+    .note { font-size: 14px; color: #627066; line-height: 1.9; margin: 18px 0 46px; }
+    .card { border: 1px solid #d0d8ca; border-radius: 18px; background: #e9ede2; padding: 28px 30px; max-width: 680px; }
+    .card-label { margin: 0 0 15px; font-size: 10px; letter-spacing: .2em; color: #53664e; }
+    h2 { margin: 0; font-size: 19px; font-weight: 500; }
+    .card p:last-child { font-size: 13px; line-height: 1.9; color: #56624f; margin: 12px 0 0; }
+    footer { display: flex; justify-content: space-between; gap: 16px; padding-top: 24px; border-top: 1px solid #d7dcd2; font-size: 11px; color: #617064; line-height: 1.7; }
+    @media (max-width: 600px) { .page { padding: 24px; } header { align-items: flex-start; } .edition { max-width: 90px; text-align: right; line-height: 1.7; } main { padding: 72px 0 56px; } h1 { margin: 25px 0; } .card { padding: 24px; } footer { flex-direction: column; gap: 5px; } }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header><div class="brand">KIMIE</div><div class="edition">DEVELOPMENT / 01</div></header>
+    <main>
+      <div class="eyebrow"><span class="dot" aria-hidden="true"></span> A SPACE FOR NEW IDEAS</div>
+      <h1>KIMIE AI<br><span>Development</span></h1>
+      <p class="intro">アイデアを、ひとつずつ形に。</p>
+      <p class="note">ここから、新しいアプリづくりが始まります。</p>
+      <section class="card" aria-labelledby="preview-title">
+        <p class="card-label">FIRST STEP</p>
+        <h2 id="preview-title">公開確認用のスタートページ</h2>
+        <p>このページは、開発した内容をウェブで確認するための最初のページです。<br>これから少しずつ、機能やコンテンツを追加していきます。</p>
+      </section>
+    </main>
+    <footer><span>KIMIE AI Development</span><span>小さく始めて、育てていく。</span></footer>
+  </div>
+</body>
+</html>

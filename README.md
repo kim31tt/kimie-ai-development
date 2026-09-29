@@ -1,5 +1,7 @@
 # KIMIE AI Development
 
+公開URL: https://kimie-ai-development.vercel.app/
+
 公開・自動デプロイ確認用の静的ページです。`index.html` をブラウザで開けます。ビルドや環境変数は不要です。
 
 ## 更新と公開

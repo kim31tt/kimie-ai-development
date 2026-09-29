@@ -1,0 +1,48 @@
+name: Sync to Vercel Repository
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.MIRROR_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Clone deployment repository
+        run: |
+          git clone git@github.com:MasaomiF/kimie-ai-development.git deployment
+
+      - name: Copy source files
+        run: |
+          rsync -av --delete \
+            --exclude='.git' \
+            --exclude='deployment' \
+            ./ deployment/
+
+      - name: Commit and push
+        working-directory: deployment
+        run: |
+          git config user.name "MasaomiF"
+          git config user.email "MasaomiF@users.noreply.github.com"
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+            exit 0
+          fi
+
+          git commit -m "Sync from development repository"
+          git push origin main
+

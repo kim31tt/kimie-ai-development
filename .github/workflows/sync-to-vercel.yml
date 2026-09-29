@@ -4,45 +4,89 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-to-vercel-main
+  cancel-in-progress: false
 
 jobs:
   sync:
+    # A copied workflow must never sync back or trigger another mirror.
+    if: github.repository == 'kim31tt/kimie-ai-development' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout source repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: main
+          persist-credentials: false
 
       - name: Configure SSH
+        env:
+          MIRROR_SSH_KEY: ${{ secrets.MIRROR_SSH_KEY }}
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.MIRROR_SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          set -euo pipefail
+          test -n "$MIRROR_SSH_KEY"
+          umask 077
+          printf '%s\n' "$MIRROR_SSH_KEY" > "$RUNNER_TEMP/mirror_ssh_key"
+          curl --fail --silent --show-error --retry 3 https://api.github.com/meta \
+            | python3 -c 'import json, sys; print("\n".join("github.com " + key for key in json.load(sys.stdin)["ssh_keys"]))' \
+            > "$RUNNER_TEMP/github_known_hosts"
+          test -s "$RUNNER_TEMP/github_known_hosts"
+          echo "DEPLOYMENT_DIR=$RUNNER_TEMP/vercel-deployment" >> "$GITHUB_ENV"
+          echo "GIT_SSH_COMMAND=ssh -i \"$RUNNER_TEMP/mirror_ssh_key\" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=\"$RUNNER_TEMP/github_known_hosts\"" >> "$GITHUB_ENV"
 
       - name: Clone deployment repository
         run: |
-          git clone git@github.com:MasaomiF/kimie-ai-development.git deployment
+          git clone --single-branch --branch main \
+            git@github.com:MasaomiF/kimie-ai-development.git "$DEPLOYMENT_DIR"
 
       - name: Copy source files
         run: |
-          rsync -av --delete \
+          set -euo pipefail
+          # Excluded files are protected by rsync --delete, so remove the old workflow explicitly.
+          git -C "$DEPLOYMENT_DIR" rm -r --ignore-unmatch -- .github
+          rsync -a --checksum --delete \
             --exclude='.git' \
-            --exclude='deployment' \
-            ./ deployment/
+            --exclude='.github' \
+            ./ "$DEPLOYMENT_DIR/"
+          test ! -e "$DEPLOYMENT_DIR/.github"
+          test -d "$DEPLOYMENT_DIR/.git"
+          remaining_changes="$(rsync -acni --delete --exclude='.git' --exclude='.github' ./ "$DEPLOYMENT_DIR/")"
+          test -z "$remaining_changes"
+          echo "Verified: source files match and deployment has no .github directory."
 
       - name: Commit and push
-        working-directory: deployment
         run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse HEAD)"
+          cd "$DEPLOYMENT_DIR"
           git config user.name "MasaomiF"
           git config user.email "MasaomiF@users.noreply.github.com"
           git add -A
-
           if git diff --cached --quiet; then
             echo "No changes to sync."
-            exit 0
+          else
+            git commit -m "Sync from kim31tt/kimie-ai-development@${source_sha}"
+            git push origin HEAD:main
           fi
+          git fetch origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)"
+          test -z "$(git ls-tree --name-only origin/main -- .github)"
+          echo "Verified: remote main matches the deployment commit and contains no .github directory."
+          {
+            echo "### B to A sync verified"
+            echo "- Source commit: ${source_sha}"
+            echo "- Deployment commit: $(git rev-parse HEAD)"
+            echo "- Remote main verified; .github is absent."
+          } >> "$GITHUB_STEP_SUMMARY"
 
-          git commit -m "Sync from development repository"
-          git push origin main
-
+      - name: Remove temporary SSH files
+        if: always()
+        run: rm -f -- "$RUNNER_TEMP/mirror_ssh_key" "$RUNNER_TEMP/github_known_hosts"

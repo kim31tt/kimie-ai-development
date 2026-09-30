@@ -10,7 +10,7 @@ export const roomMembers=room=>room.members||GROUPS[room.group].members;
 export const memberKey=members=>[...new Set(members)].sort().join('|');
 export const sameAudience=(a,b)=>memberKey(roomMembers(a))===memberKey(roomMembers(b));
 export const roomAudience=room=>({...GROUPS[room.group],members:roomMembers(room),short:roomMembers(room).join('・')});
-export function visible(room,role){return role==='team'||roomMembers(room).includes({client:'田中様',partner:'山本'}[role]);}
+export function visible(room,role){return role==='team'||roomMembers(room).includes((role.startsWith('member:')?role.slice(7):{client:'田中様',partner:'山本'}[role]));}
 export function extractRequests(text){return text.split(/\n|(?<=[。！？])/u).map(s=>s.trim()).filter(s=>s && !/^(よろしく)?お願い(します|いたします|できますか|できる|ね)[。！？?！]*$/.test(s) && !/(不要|しないで|必要ありません|なくて大丈夫|しなくていい|やらなくていい|しなくて大丈夫|完了しました|対応済み)/u.test(s) && /(お願い|ください|下さい|いただけますか|もらえますか|もらえる|くれる[？?]?|しておきます|やっておきます|確認するね|必要です|します[。！!]?\s*$|すること[。]?\s*$|TODO[:：]|ToDo[:：])/iu.test(s)).slice(0,5).map(s=>({title:s.replace(/^(TODO|ToDo)[:：]\s*/iu,'').slice(0,160),due:parseDue(s)}));}
 export function parseDue(text,reference=new Date()){const base=new Date(reference);const relative=n=>day(n,base);if(text.includes('明後日'))return relative(2);if(text.includes('明日'))return relative(1);if(text.includes('今日')||text.includes('本日'))return relative(); const weekday=text.match(/(来週|今週)?([日月火水木金土])曜(?:日)?/);if(weekday){const target='日月火水木金土'.indexOf(weekday[2]),today=base.getDay();let offset=(target-today+7)%7;if(weekday[1]==='来週'){const monday=(today+6)%7;offset=7-monday+(target+6)%7;}return relative(offset);} const m=text.match(/(\d{1,2})[月/](\d{1,2})日?/);if(m){const y=base.getFullYear(),d=new Date(y,+m[1]-1,+m[2]);if(d.getMonth()===+m[1]-1&&d.getDate()===+m[2])return `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;}return '';}
 export function addMessage(state,roomId,text,auto=true){
@@ -124,7 +124,7 @@ export function ensureConversationTask(state,room){
 }
 export function detectAssignee(text,room){
   const members=roomMembers(room);
-  const matched=members.filter(name=>new RegExp(name+'(?:さん|様)?(?:に|へ|が|担当|[、,：:])').test(text)&&!new RegExp(name+'(?:さん|様)?(?:に|が)?(?:は)?(?:お願いしない|担当ではない)').test(text));
+  const matched=members.filter(name=>new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:さん|様)?(?:に|へ|が|担当|[、,：:])').test(text)&&!new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:さん|様)?(?:に|が)?(?:は)?(?:お願いしない|担当ではない)').test(text));
   return matched.length===1?matched[0]: /(?:私が|自分が|私に任せて)/.test(text)?'あなた':'';
 }
 export function completionSignal(text){
@@ -144,7 +144,7 @@ export function updateConversationTask(task,message,room){
     task.kind=kind;changed.push('分類');
   }
   if(due&&!task.manualFields?.due&&due!==task.due){task.due=due;changed.push('期限');}
-  if(assignee&&!task.manualFields?.assignee&&assignee!==task.assignee){task.assignee=assignee;changed.push('担当');}
+  if(assignee&&!task.manualFields?.assignee&&assignee!==task.assignee){task.assignee=assignee;task.assignees=[assignee];changed.push('担当');}
   if(completionSignal(message.text)){task.completionCandidate=true;task.completionMessageId=message.id;changed.push('完了候補');}
   if(changed.length){task.lastUpdate={messageId:message.id,fields:changed};task.review=true;}
 }
@@ -203,7 +203,7 @@ export function findParticipantChat(state,projectId,members){
   return state.rooms.find(r=>r.topicId===`general-${projectId}`&&memberKey(roomMembers(r))===key)||null;
 }
 export function sendToParticipants(state,{projectId,members,text,name='',sourceMessageId=null}){
-  if(!Array.isArray(members)||members.some(m=>!['あなた',...CONTACTS].includes(m)))return null;
+  if(!Array.isArray(members)||members.some(m=>!['あなた',...contactDirectory(state).map(c=>c.name)].includes(m)))return null;
   const selected=[...new Set(['あなた',...members])];
   if(selected.length<2||!text.trim()||text.trim().length>4000||!state.projects.some(p=>p.id===projectId))return null;
   const source=sourceMessageId&&state.messages.find(m=>m.id===sourceMessageId);
@@ -211,7 +211,7 @@ export function sendToParticipants(state,{projectId,members,text,name='',sourceM
   ensureProjectChats(state);
   let room=findParticipantChat(state,projectId,selected),created=false;
   if(!room){
-    room={id:uid(),topicId:`general-${projectId}`,group:selected.includes('田中様')?'client':selected.includes('山本')?'partner':'team',members:selected,name:name.trim().slice(0,40)||selected.filter(m=>m!=='あなた').join('・')+'とのグループ'};
+    room={id:uid(),topicId:`general-${projectId}`,group:contactDirectory(state).some(c=>selected.includes(c.name)&&c.category==='client')?'client':contactDirectory(state).some(c=>selected.includes(c.name)&&c.category==='partner')?'partner':'team',members:selected,name:name.trim().slice(0,40)||selected.filter(m=>m!=='あなた').join('・')+'とのグループ'};
     state.rooms.push(room);created=true;
   }
   const tasks=addMessage(state,room.id,text);
@@ -242,4 +242,44 @@ export function chatTopics(state,chatId,role='team'){
   return state.rooms.filter(r=>visible(r,role)&&sameAudience(chat,r)&&state.topics.some(t=>t.id===r.topicId&&t.projectId===projectId&&t.kind!=='general'))
     .map(room=>({room,topic:state.topics.find(t=>t.id===room.topicId)}))
     .sort((a,b)=>Number(a.topic.status==='resolved')-Number(b.topic.status==='resolved')||b.topic.updatedAt.localeCompare(a.topic.updatedAt));
+}
+
+export const CATEGORIES={company:'自社',partner:'取引先',client:'施主',other:'その他'};
+export function contactDirectory(state){
+  const contacts=state.contacts||[{name:'佐藤',category:'company'},{name:'田中様',category:'client'},{name:'山本',category:'partner'}];
+  for(const r of state.rooms)for(const name of roomMembers(r))if(name!=='あなた'&&!contacts.some(c=>c.name===name))contacts.push({name,category:'other'});
+  return contacts;
+}
+export function addContact(state,name,category){
+  name=String(name||'').trim();
+  if(!name||name.length>40||!Object.hasOwn(CATEGORIES,category))throw Error('名前（40文字以内）とカテゴリを確認してください');
+  if(name==='あなた'||contactDirectory(state).some(c=>c.name.normalize('NFKC')===name.normalize('NFKC')))throw Error('同じ名前が登録済みです。同姓同名の場合は会社名などを付けてください');
+  const contact={name,category};state.contacts=[...contactDirectory(state),contact];return contact;
+}
+export const taskAssignees=t=>t.assignees??(t.assignee&&t.assignee!=='未割当'?[t.assignee]:[]);
+export function updateTaskDetails(state,id,input){
+  const t=state.tasks.find(t=>t.id===id),r=state.rooms.find(r=>r.id===t?.roomId);if(!t||!r)throw Error('タスクが見つかりません');
+  const validate=x=>{
+    const title=String(x.title||'').trim();if(!title||title.length>160)throw Error('タスク名を160文字以内で入力してください');
+    const startDate=x.startDate||'',due=x.due||'';
+    for(const date of [startDate,due])if(date&&(!/^\d{4}-\d{2}-\d{2}$/.test(date)||Number.isNaN(Date.parse(date))||new Date(date).toISOString().slice(0,10)!==date))throw Error('日付を確認してください');
+    if(startDate&&due&&startDate>due)throw Error('着手予定日は期限以前にしてください');
+    const assignees=[...new Set(x.assignees||[])];if(assignees.some(n=>!roomMembers(r).includes(n)))throw Error('担当者はこの会話の参加者から選んでください');
+    return {...x,title,startDate,due,assignees};
+  };
+  const next=validate(input);if(!Object.hasOwn(TRACKING,next.kind))throw Error('分類を確認してください');
+  next.subtasks=(input.subtasks||[]).map(x=>({...validate(x),id:x.id||uid(),done:!!x.done}));
+  const locks={...t.manualFields,kind:true};for(const key of ['title','due'])if(next[key]!==t[key])locks[key]=true;
+  if(JSON.stringify(next.assignees)!==JSON.stringify(taskAssignees(t)))locks.assignee=true;
+  Object.assign(t,next,{assignee:next.assignees[0]||'未割当',manualFields:locks,review:false});
+  if(t.done&&t.subtasks.some(s=>!s.done)){t.done=false;state.topics.find(tp=>tp.id===r.topicId).status='open';}
+  return t;
+}
+export function toggleTask(state,id,subtaskId){
+  const t=state.tasks.find(t=>t.id===id);if(!t)return false;
+  const target=subtaskId?t.subtasks?.find(s=>s.id===subtaskId):t;if(!target)return false;
+  if(!subtaskId&&!t.done&&t.subtasks?.some(s=>!s.done))throw Error('未完了の小タスクがあります。先に小タスクを完了してください');
+  target.done=!target.done;if(!target.done)t.done=false;
+  if(t.done){t.review=false;t.completionCandidate=false;}
+  if(!t.done)state.topics.find(tp=>tp.id===state.rooms.find(r=>r.id===t.roomId).topicId).status='open';return true;
 }

@@ -226,3 +226,20 @@ export function searchMessages(state,{projectId,role='team',query}){
   const roomIds=new Set(state.rooms.filter(r=>visible(r,role)&&state.topics.some(t=>t.id===r.topicId&&t.projectId===projectId)).map(r=>r.id));
   return state.messages.filter(m=>roomIds.has(m.roomId)&&words.every(w=>normalize(m.text).includes(w))).sort((a,b)=>b.at.localeCompare(a.at));
 }
+
+// Topic rooms are nested under the participant chat, including legacy topics without an origin post.
+export function parentChat(state,roomId){
+  const room=state.rooms.find(r=>r.id===roomId);
+  const topic=room&&state.topics.find(t=>t.id===room.topicId);
+  if(!topic)return null;
+  if(topic.kind==='general')return room;
+  return findParticipantChat(state,topic.projectId,roomMembers(room));
+}
+export function chatTopics(state,chatId,role='team'){
+  const chat=state.rooms.find(r=>r.id===chatId);
+  if(!chat||!visible(chat,role))return [];
+  const projectId=state.topics.find(t=>t.id===chat.topicId)?.projectId;
+  return state.rooms.filter(r=>visible(r,role)&&sameAudience(chat,r)&&state.topics.some(t=>t.id===r.topicId&&t.projectId===projectId&&t.kind!=='general'))
+    .map(room=>({room,topic:state.topics.find(t=>t.id===room.topicId)}))
+    .sort((a,b)=>Number(a.topic.status==='resolved')-Number(b.topic.status==='resolved')||b.topic.updatedAt.localeCompare(a.topic.updatedAt));
+}

@@ -116,3 +116,20 @@ test('案件内検索は全件・解決済み・全角英数・複数語を扱�
  assert.equal(searchMessages(s,{projectId:'p1',role:'partner',query:'特殊キーワード'})[0].id,a.message.id);
  assert.equal(searchMessages(s,{projectId:'p1',role:'client',query:'特殊キーワード'}).length,0);
 });
+
+import {parentChat,chatTopics} from '../model.mjs';
+test('旧来の話題と解決済みの会話も、同じ参加者のチャット内から開ける',()=>{
+ const s=seed();ensureProjectChats(s);const before=JSON.stringify(s);
+ assert.equal(parentChat(s,'r6').id,'general-p1-client');
+ const items=chatTopics(s,'general-p1-client','client');assert.ok(items.some(x=>x.room.id==='r6'&&x.topic.status==='resolved'));
+ assert.ok(items.some(x=>x.room.id==='r1'));assert.ok(!items.some(x=>x.room.id==='r2'));
+ assert.equal(JSON.stringify(s),before);assert.equal(parentChat(s,'missing'),null);
+});
+test('話題の親チャットは案件と参加者を一致させ、別の相手・案件の話題を混ぜない',()=>{
+ const s=seed();const a=sendToParticipants(s,{projectId:'p1',members:['山本'],text:'図面について相談したいです'});
+ const b=branchConversation(s,a.message.id,'この話を続けます');const nested=branchConversation(s,s.messages.at(-1).id,'さらに確認します');
+ assert.equal(parentChat(s,b.room.id).id,a.room.id);assert.equal(parentChat(s,nested.room.id).id,a.room.id);
+ assert.equal(chatTopics(s,a.room.id,'partner').length,2);assert.equal(chatTopics(s,a.room.id,'client').length,0);
+ assert.ok(!chatTopics(s,'general-p1-partner','team').some(x=>x.room.id===b.room.id));
+ const other=sendToParticipants(s,{projectId:'p2',members:['山本'],text:'別案件'});assert.equal(chatTopics(s,other.room.id).length,0);
+});

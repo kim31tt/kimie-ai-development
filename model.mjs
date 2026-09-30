@@ -5,7 +5,12 @@ export const contactName = group => ({team:'社内の会話',client:'田中様�
 export const STATUS = {open:'未解決',waiting:'返答待ち',resolved:'解決済み'};
 export const uid = () => crypto.randomUUID();
 export function day(offset=0,reference=new Date()){ const d=new Date(reference); d.setDate(d.getDate()+offset); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
-export function visible(room,role){return role==='team'||room.group===role;}
+export const CONTACTS=['佐藤','田中様','山本'];
+export const roomMembers=room=>room.members||GROUPS[room.group].members;
+export const memberKey=members=>[...new Set(members)].sort().join('|');
+export const sameAudience=(a,b)=>memberKey(roomMembers(a))===memberKey(roomMembers(b));
+export const roomAudience=room=>({...GROUPS[room.group],members:roomMembers(room),short:roomMembers(room).join('・')});
+export function visible(room,role){return role==='team'||roomMembers(room).includes({client:'田中様',partner:'山本'}[role]);}
 export function extractRequests(text){return text.split(/\n|(?<=[。！？])/u).map(s=>s.trim()).filter(s=>s && !/^(よろしく)?お願い(します|いたします|できますか|できる|ね)[。！？?！]*$/.test(s) && !/(不要|しないで|必要ありません|なくて大丈夫|しなくていい|やらなくていい|しなくて大丈夫|完了しました|対応済み)/u.test(s) && /(お願い|ください|下さい|いただけますか|もらえますか|もらえる|くれる[？?]?|しておきます|やっておきます|確認するね|必要です|します[。！!]?\s*$|すること[。]?\s*$|TODO[:：]|ToDo[:：])/iu.test(s)).slice(0,5).map(s=>({title:s.replace(/^(TODO|ToDo)[:：]\s*/iu,'').slice(0,160),due:parseDue(s)}));}
 export function parseDue(text,reference=new Date()){const base=new Date(reference);const relative=n=>day(n,base);if(text.includes('明後日'))return relative(2);if(text.includes('明日'))return relative(1);if(text.includes('今日')||text.includes('本日'))return relative(); const weekday=text.match(/(来週|今週)?([日月火水木金土])曜(?:日)?/);if(weekday){const target='日月火水木金土'.indexOf(weekday[2]),today=base.getDay();let offset=(target-today+7)%7;if(weekday[1]==='来週'){const monday=(today+6)%7;offset=7-monday+(target+6)%7;}return relative(offset);} const m=text.match(/(\d{1,2})[月/](\d{1,2})日?/);if(m){const y=base.getFullYear(),d=new Date(y,+m[1]-1,+m[2]);if(d.getMonth()===+m[1]-1&&d.getDate()===+m[2])return `${y}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;}return '';}
 export function addMessage(state,roomId,text,auto=true){
@@ -70,10 +75,10 @@ export function branchConversation(state, messageId, text) {
   if (!topic) {
     const now = new Date().toISOString();
     topic = {id:uid(),projectId:parent.projectId,title:source.text.replace(/\s+/g,' ').slice(0,42),summary:'会話から分かれた、続きのやりとり',originMessageId:source.id,status:'open',createdAt:now,updatedAt:now};
-    room = {id:uid(),topicId:topic.id,group:sourceRoom.group,name:sourceRoom.name};
+    room = {id:uid(),topicId:topic.id,group:sourceRoom.group,members:[...roomMembers(sourceRoom)],name:sourceRoom.name};
     state.topics.push(topic); state.rooms.push(room);
   } else {
-    room = state.rooms.find(r=>r.topicId===topic.id && r.group===sourceRoom.group);
+    room = state.rooms.find(r=>r.topicId===topic.id && sameAudience(r,sourceRoom));
     topic.status = 'open';
   }
   const tracking=ensureConversationTask(state,room);
@@ -85,7 +90,7 @@ export function branchConversation(state, messageId, text) {
 export function conversationTitle(state, topic, room) {
   const origin=state.messages.find(m=>m.id===topic.originMessageId);
   const originalRoom=origin&&state.rooms.find(r=>r.id===origin.roomId);
-  return originalRoom && room && originalRoom.group!==room.group ? room.name : topic.title;
+  return originalRoom && room && !sameAudience(originalRoom,room) ? room.name : topic.title;
 }
 
 // A branch has one tracked task per audience room, rather than one per reply.
@@ -97,19 +102,19 @@ export function ensureConversationTask(state,room){
   const topic=state.topics.find(t=>t.id===room.topicId);
   const origin=state.messages.find(m=>m.id===topic.originMessageId);
   const sourceRoom=origin&&state.rooms.find(r=>r.id===origin.roomId);
-  const sameAudience=!!sourceRoom&&sourceRoom.group===room.group;
+  const matchingAudience=!!sourceRoom&&sameAudience(sourceRoom,room);
   const localMessages=state.messages.filter(m=>m.roomId===room.id);
-  let initial=sameAudience?origin:localMessages[0];
+  let initial=matchingAudience?origin:localMessages[0];
   const initialKind=classifyTracking(initial?.text||'');
   const nextIntent=localMessages.map(m=>classifyTracking(m.text)).find(k=>k&&k!=='reference');
   if(initialKind==='reference'&&!nextIntent)return {task:null,created:false};
   if(initialKind==='reference')initial=localMessages.find(m=>{const k=classifyTracking(m.text);return k&&k!=='reference';});
   // Reuse a task made from the original request; retain its origin for navigation.
-  task=sameAudience&&state.tasks.find(t=>t.messageId===origin.id&&!t.dismissed&&!t.conversationTask);
+  task=matchingAudience&&state.tasks.find(t=>t.messageId===origin.id&&!t.dismissed&&!t.conversationTask);
   if(task){task.originMessageId=origin.id;task.roomId=room.id;task.messageId=null;}
   else task=state.tasks.find(t=>t.roomId===room.id&&!t.dismissed);
   if(!task){
-    task={id:uid(),roomId:room.id,messageId:null,originMessageId:sameAudience?origin?.id:null,kind:(initialKind&&initialKind!=='reference'?initialKind:nextIntent)||'discussion',title:(initial?.text||room.name).replace(/\s+/g,' ').slice(0,160),due:'',assignee:'未割当',done:false,review:true};
+    task={id:uid(),roomId:room.id,messageId:null,originMessageId:matchingAudience?origin?.id:null,kind:(initialKind&&initialKind!=='reference'?initialKind:nextIntent)||'discussion',title:(initial?.text||room.name).replace(/\s+/g,' ').slice(0,160),due:'',assignee:'未割当',done:false,review:true};
     state.tasks.push(task);fresh=true;
   }
   task.conversationTask=true;task.relatedMessageIds=task.relatedMessageIds||[];
@@ -118,7 +123,7 @@ export function ensureConversationTask(state,room){
   return {task,created:true};
 }
 export function detectAssignee(text,room){
-  const members=GROUPS[room.group].members;
+  const members=roomMembers(room);
   const matched=members.filter(name=>new RegExp(name+'(?:さん|様)?(?:に|へ|が|担当|[、,：:])').test(text)&&!new RegExp(name+'(?:さん|様)?(?:に|が)?(?:は)?(?:お願いしない|担当ではない)').test(text));
   return matched.length===1?matched[0]: /(?:私が|自分が|私に任せて)/.test(text)?'あなた':'';
 }
@@ -190,4 +195,34 @@ export function relatedConversations(state,topicId,role){
   const parentId=t=>{const m=state.messages.find(m=>m.id===t.relatedSourceMessageId);return state.rooms.find(r=>r.id===m?.roomId)?.topicId;};
   const parent=parentId(current);
   return state.topics.filter(t=>t.id!==topicId&&t.projectId===current.projectId&&(t.id===parent||parentId(t)===topicId||(current.relatedSourceMessageId&&t.relatedSourceMessageId===current.relatedSourceMessageId)));
+}
+
+// Canonical participant groups live in the project's main chat list; topic threads stay separate.
+export function findParticipantChat(state,projectId,members){
+  const key=memberKey(['あなた',...members]);
+  return state.rooms.find(r=>r.topicId===`general-${projectId}`&&memberKey(roomMembers(r))===key)||null;
+}
+export function sendToParticipants(state,{projectId,members,text,name='',sourceMessageId=null}){
+  if(!Array.isArray(members)||members.some(m=>!['あなた',...CONTACTS].includes(m)))return null;
+  const selected=[...new Set(['あなた',...members])];
+  if(selected.length<2||!text.trim()||text.trim().length>4000||!state.projects.some(p=>p.id===projectId))return null;
+  const source=sourceMessageId&&state.messages.find(m=>m.id===sourceMessageId);
+  if(sourceMessageId&&(!source||state.topics.find(t=>t.id===state.rooms.find(r=>r.id===source.roomId)?.topicId)?.projectId!==projectId))return null;
+  ensureProjectChats(state);
+  let room=findParticipantChat(state,projectId,selected),created=false;
+  if(!room){
+    room={id:uid(),topicId:`general-${projectId}`,group:selected.includes('田中様')?'client':selected.includes('山本')?'partner':'team',members:selected,name:name.trim().slice(0,40)||selected.filter(m=>m!=='あなた').join('・')+'とのグループ'};
+    state.rooms.push(room);created=true;
+  }
+  const tasks=addMessage(state,room.id,text);
+  const message=state.messages.at(-1);
+  if(source)message.relatedSourceMessageId=source.id;
+  return {room,topic:state.topics.find(t=>t.id===room.topicId),tasks,message,created};
+}
+export function searchMessages(state,{projectId,role='team',query}){
+  const normalize=s=>s.normalize('NFKC').toLocaleLowerCase('ja-JP');
+  const words=normalize(query).trim().split(/\s+/).filter(Boolean);
+  if(!words.length)return [];
+  const roomIds=new Set(state.rooms.filter(r=>visible(r,role)&&state.topics.some(t=>t.id===r.topicId&&t.projectId===projectId)).map(r=>r.id));
+  return state.messages.filter(m=>roomIds.has(m.roomId)&&words.every(w=>normalize(m.text).includes(w))).sort((a,b)=>b.at.localeCompare(a.at));
 }

@@ -77,3 +77,42 @@ test('相談から具体化したTodoは依頼文を表題にし、その後の�
   addMessage(s,b.room.id,'明日までに図面を確認してください');assert.equal(t.title,'明日までに図面を確認してください');
   addMessage(s,b.room.id,'この案はどうでしょう？');assert.equal(trackingKind(t),'todo');assert.equal(t.title,'明日までに図面を確認してください');
 });
+
+import {sendToParticipants,findParticipantChat,roomMembers,searchMessages} from '../model.mjs';
+test('同じ参加者なら既存の案件チャットへ送り、並び順や重複でグループを増やさない',()=>{
+ const s=seed();ensureProjectChats(s);const n=s.rooms.length;
+ for(const [members,id] of [[['佐藤'],'team'],[['田中様','佐藤','佐藤'],'client'],[['山本','あなた','佐藤'],'partner']]){
+  const result=sendToParticipants(s,{projectId:'p1',members,text:'確認の連絡です'});
+  assert.equal(result.created,false);assert.equal(result.room.id,`general-p1-${id}`);assert.equal(result.message.roomId,result.room.id);
+ }assert.equal(s.rooms.length,n);
+});
+test('新しい組み合わせは独立したグループになり、同じ組み合わせの再送と再読込で再利用される',()=>{
+ const s=seed();const a=sendToParticipants(s,{projectId:'p1',members:['田中様','山本'],text:'合同で相談したいです',name:'現場打ち合わせ'});
+ assert.equal(a.created,true);assert.equal(a.room.name,'現場打ち合わせ');assert.deepEqual(new Set(roomMembers(a.room)),new Set(['あなた','田中様','山本']));
+ const copy=JSON.parse(JSON.stringify(s));const b=sendToParticipants(copy,{projectId:'p1',members:['山本','田中様'],text:'続きです',name:'別名'});
+ assert.equal(b.created,false);assert.equal(b.room.id,a.room.id);assert.equal(b.room.name,'現場打ち合わせ');
+ const c=sendToParticipants(copy,{projectId:'p2',members:['山本','田中様'],text:'別案件です'});assert.notEqual(c.room.id,a.room.id);
+});
+test('参加者と案件・本文を検証して、不正な入力でグループを作らない',()=>{
+ const s=seed(),before=JSON.stringify(s);
+ for(const input of [{members:[]},{members:['未知の人']},{members:['佐藤'],text:' '},{members:['佐藤'],projectId:'unknown'}])assert.equal(sendToParticipants(s,{projectId:'p1',members:['佐藤'],text:'テスト',...input}),null);
+ assert.equal(JSON.stringify(s),before);
+});
+test('カスタムグループの閲覧と分岐は実際の参加者で判定する',()=>{
+ const s=seed();const a=sendToParticipants(s,{projectId:'p1',members:['山本'],text:'相談したいです'});
+ assert.equal(visible(a.room,'client'),false);assert.equal(visible(a.room,'partner'),true);
+ const b=branchConversation(s,a.message.id,'続けましょう');assert.deepEqual(roomMembers(b.room),roomMembers(a.room));assert.equal(visible(b.room,'client'),false);
+ const c=sendToParticipants(s,{projectId:'p1',members:['山本','田中様'],text:'合同相談です'});assert.equal(visible(c.room,'client'),true);assert.equal(visible(c.room,'partner'),true);
+});
+test('案件内検索は全件・解決済み・全角英数・複数語を扱い、別案件と参加者外の投稿を除外する',()=>{
+ const s=seed();ensureProjectChats(s);
+ for(let i=0;i<15;i++)addMessage(s,'general-p1-team',`ＡＢＣ 図面 ${i}`,false);
+ addMessage(s,'general-p2-team','ABC 図面 他案件',false);
+ assert.equal(searchMessages(s,{projectId:'p1',query:'abc　図面'}).length,15);
+ assert.equal(searchMessages(s,{projectId:'p1',role:'client',query:'abc'}).length,0);
+ assert.equal(searchMessages(s,{projectId:'p1',query:'床材'})[0].id,'m9');
+ assert.deepEqual(searchMessages(s,{projectId:'p1',query:'   '}),[]);
+ const a=sendToParticipants(s,{projectId:'p1',members:['山本'],text:'特殊キーワード'});
+ assert.equal(searchMessages(s,{projectId:'p1',role:'partner',query:'特殊キーワード'})[0].id,a.message.id);
+ assert.equal(searchMessages(s,{projectId:'p1',role:'client',query:'特殊キーワード'}).length,0);
+});

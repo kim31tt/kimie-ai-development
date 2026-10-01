@@ -1,2 +1,35 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f7f8f5"><meta name="description" content="KIMIE — 話題を見失わず、会話を次のアクションへ。ChatとTodoをつなぐ案件ワークスペース。"><title>KIMIE | Chat & Todo</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%232b5c4a'/%3E%3Ctext x='32' y='45' text-anchor='middle' font-family='sans-serif' font-size='44' fill='white'%3EK%3C/text%3E%3C/svg%3E"><link rel="stylesheet" href="styles.css"><script type="module" src="app.mjs"></script></head><body><div id="app"></div><dialog id="dialog"></dialog><div id="toast" role="status" aria-live="polite"></div><noscript>このアプリにはJavaScriptが必要です。</noscript></body></html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f5f6f0">
+  <meta name="description" content="KIMIE AI Development — 日々の仕事をつなぐアプリの入口。Chat & Todoで、会話から次のアクションへ。">
+  <title>KIMIE AI Development | アプリ一覧</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%232b5c4a'/%3E%3Ctext x='32' y='45' text-anchor='middle' font-family='serif' font-size='44' fill='white'%3EK%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/portal.css">
+  <script type="module" src="/portal.mjs"></script>
+</head>
+<body>
+  <header class="portal-header">
+    <a class="brand" href="/" aria-label="KIMIE ホーム"><span class="brand-mark">K</span><span>KIMIE<small>AI DEVELOPMENT</small></span></a>
+    <a class="nav-current" href="#apps">アプリ一覧 <span>↗</span></a>
+  </header>
+  <main class="portal-main">
+    <section class="welcome" aria-labelledby="welcome-title">
+      <p class="eyebrow"><span></span> YOUR WORKSPACE, CONNECTED</p>
+      <h1 id="welcome-title">仕事の続きを、<br>ここから。</h1>
+      <p class="welcome-copy">会話も、やることも。<br>日々の仕事を支えるアプリを、ひとつの場所に。</p>
+      <div class="welcome-art" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="art-center">K</div><span class="art-dot dot-one"></span><span class="art-dot dot-two"></span><span class="art-dot dot-three"></span></div>
+    </section>
+    <section class="apps-section" id="apps" aria-labelledby="apps-title">
+      <div class="section-title"><div><p class="eyebrow">APPLICATIONS</p><h2 id="apps-title">アプリを選ぶ</h2></div><p>必要な道具を、必要なときに。</p></div>
+      <div class="app-grid" id="app-grid">
+        <a class="app-card" href="/chat-todo/"><span class="app-icon" aria-hidden="true">↗</span><span class="card-category">COMMUNICATION & TASKS</span><h3>Chat & Todo</h3><p>相手ごとの会話と、そこから生まれるTodo。<br>案件のやり取りを、次のアクションにつなげます。</p><span class="card-tags"><span>案件チャット</span><span>タスク管理</span></span><span class="card-footer">アプリを開く <span aria-hidden="true">↗</span></span></a>
+      </div>
+      <aside class="expansion-note"><span class="expansion-icon" aria-hidden="true">＋</span><div><h3>ここから、使えるアプリを増やしていく。</h3><p>新しいアプリも、この一覧にまとまります。</p></div></aside>
+    </section>
+  </main>
+  <footer class="portal-footer"><span>KIMIE AI Development</span><span>会話を、仕事を、つなぐ。</span></footer>
+</body>
+</html>

@@ -10,7 +10,7 @@ SQL EditorまたはSupabase CLIのmigrationで、`supabase/migrations/2026093000
 
 - AuthenticationでEmailを有効にし、新規ユーザー登録を許可。メール確認を有効にします。匿名ログインは使用しません。
 - Email Templatesの「Magic Link」と「Confirm signup」の本文に`supabase/templates/login-code.html`を設定してください。`{{ .Token }}`を表示して、リンクではなくコード入力で認証します。
-- Site URLは`https://kimie-ai-development.vercel.app`に設定します。本実装は認証リンクのコールバックではなく`verifyOtp`を使います。
+- Site URLは`https://kimie-ai-development.vercel.app/chat-todo/`に設定します。本実装は認証リンクのコールバックではなく`verifyOtp`を使います。
 - Custom SMTPに送信元メール・SMTP接続情報を設定します。SMTPの認証情報はSupabaseの設定画面だけに入力し、フロントエンド環境変数には設定しません。
 - 送信ドメインをプロバイダの手順に従って検証し、アプリの利用人数に合わせてAuthの送信制限・コード期限を設定します。
 
@@ -53,3 +53,7 @@ Preview用のVercelプロジェクトか、Aのプレビューブランチにこ
 この版ではファイル添付、外部AI API、通知、招待メールの自動配信、WebSocket即時配信、管理者の追加UIは含みません。会話のTodo化はサーバーの日本語ルール判定で、候補は手動修正できます。バックアップ・復元方法は採用するSupabaseプランに合わせて設定してください。
 
 本番切り替え前のコード検証では、実SMTP送信・実Supabaseトークン・実Vercel配信は未検証です。設定後に上記の実環境テストを行って完了とします。
+
+## アプリ集約の構成
+
+トップ `/` にアプリ一覧を配信し、Chat & Todoは `/chat-todo/` に配信します。公開するHTML・JS・CSSはビルドで`dist/`に集めます。アプリ一覧のカードは`apps.mjs`で管理します。将来のアプリは別ディレクトリを追加し、その配信ファイルをビルドに登録してください。認証後の組織・案件・会話の権限確認は各アプリに必要です。

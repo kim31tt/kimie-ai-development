@@ -15,13 +15,13 @@ const project=await as(actors.owner,()=>rpc('create_project',{workspace_id:ws.id
 await as(actors.owner,()=>rpc('invite',{workspace_id:ws.id,email:actors.client.email,category:'client',project_ids:[project.id]}));await as(actors.client,()=>rpc('accept_invitations',{}));
 const chat=await as(actors.owner,()=>rpc('start_chat',{project_id:project.id,participant_ids:[actors.client.id],name:'田中様との連絡',body:'明日までに床材のサンプルを確認してください。',client_id:crypto.randomUUID()}));
 const bundle=await build({entryPoints:['src/app.mjs'],bundle:true,format:'esm',target:'es2022',write:false,define:{__SUPABASE_URL__:JSON.stringify('http://127.0.0.1:8766'),__SUPABASE_KEY__:JSON.stringify('sb_publishable_local_test_fixture')}});
-const assets={'/':await readFile('src/index.html'),'/index.html':await readFile('src/index.html'),'/app.js':bundle.outputFiles[0].contents,'/styles.css':await readFile('styles.css'),'/production.css':await readFile('src/production.css')};
+const assets={'/':await readFile('index.html'),'/portal.css':await readFile('portal.css'),'/portal.mjs':await readFile('portal.mjs'),'/apps.mjs':await readFile('apps.mjs'),'/chat-todo/':await readFile('src/index.html'),'/chat-todo/index.html':await readFile('src/index.html'),'/chat-todo/app.js':bundle.outputFiles[0].contents,'/chat-todo/styles.css':await readFile('styles.css'),'/chat-todo/production.css':await readFile('src/production.css')};
 const token=a=>Buffer.from(JSON.stringify({alg:'none'})).toString('base64url')+'.'+Buffer.from(JSON.stringify({sub:a.id,role:'authenticated',exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.fixture';
 const session=a=>({access_token:token(a),refresh_token:a.id,expires_in:3600,expires_at:Math.floor(Date.now()/1000)+3600,token_type:'bearer',user:{...a,aud:'authenticated',role:'authenticated',email_confirmed_at:new Date().toISOString()}});
 let queue=Promise.resolve();
 createServer((req,res)=>{queue=queue.then(async()=>{const url=new URL(req.url,'http://localhost');res.setHeader('Cache-Control','no-store');res.setHeader('Content-Type','application/json');const send=(code,data)=>{res.writeHead(code);res.end(JSON.stringify(data));};
  try{
- if(assets[url.pathname]){res.setHeader('Content-Type',url.pathname.endsWith('.js')?'text/javascript':url.pathname.endsWith('.css')?'text/css':'text/html');res.end(assets[url.pathname]);return;}
+ if(assets[url.pathname]){res.setHeader('Content-Type',/\.m?js$/.test(url.pathname)?'text/javascript':url.pathname.endsWith('.css')?'text/css':'text/html');res.end(assets[url.pathname]);return;}
  let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>150000)throw Error('Request too large');}const body=raw?JSON.parse(raw):{};
  const actor=Object.values(actors).find(a=>req.headers.authorization==='Bearer '+token(a));
  // Compare the fixture JWT's subject; its time component changes each second.

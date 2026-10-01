@@ -14,7 +14,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    uses: ./.github/workflows/verify.yml
   sync:
+    needs: verify
     # A copied workflow must never sync back or trigger another mirror.
     if: github.repository == 'kim31tt/kimie-ai-development' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest

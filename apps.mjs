@@ -10,4 +10,5 @@ export const apps = [
     tags: ['案件チャット', 'タスク管理'],
     icon: 'chat',
   },
+  {id:'work-records',name:'業務記録',category:'PERSONAL WORK LOG',description:'日々の業務と気づきを、自分のために記録。\nこのブラウザに保存して、仕事を振り返ります。',href:'/work-records/',tags:['個人記録','日々の振り返り'],icon:'record'},
 ];

@@ -1,6 +1,7 @@
 import {apps} from './apps.mjs';
 const grid = document.querySelector('#app-grid');
 const icons = {
+  record: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><rect x="9" y="5" width="24" height="30" rx="3"/><path d="M6 12h6M6 20h6M6 28h6M17 13h10M17 20h10M17 27h7"/></svg>',
   chat: '<svg viewBox="0 0 40 40" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 8h23v18H16l-9 6V8Z"/><path d="m22 29 4 4 8-9"/><path d="M13 14h11M13 19h8"/></svg>',
 };
 function textElement(tag, text, className) {
